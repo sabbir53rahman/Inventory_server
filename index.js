@@ -34,6 +34,7 @@ async function run() {
     console.log("Connected to MongoDB");
 
     const usersCollection = client.db("InventoryUserDB").collection("users");
+    const productsCollection = client.db("InventoryUserDB").collection("products");
 
     // Register a new user
     app.post("/users", async (req, res) => {
@@ -97,6 +98,36 @@ async function run() {
         message: "User found successfully.",
         data: user,
       });
+    });
+
+    // **Add a new product**
+    app.post("/products", async (req, res) => {
+      const product = req.body;
+      
+      if (!product.name || !product.price) {
+        return res.status(400).send({ message: "Product name and price are required." });
+      }
+
+      // Check if product already exists
+      const existingProduct = await productsCollection.findOne({ name: product.name });
+
+      if (existingProduct) {
+        return res.send({ message: "Product already exists", insertedId: null });
+      }
+
+      const result = await productsCollection.insertOne(product);
+      const newProduct = await productsCollection.findOne({ _id: result.insertedId });
+
+      res.send({
+        message: "Product added successfully",
+        data: newProduct,
+      });
+    });
+
+    // Get all products
+    app.get("/products", async (req, res) => {
+      const products = await productsCollection.find().toArray();
+      res.send(products);
     });
 
     app.get("/", (req, res) => {
