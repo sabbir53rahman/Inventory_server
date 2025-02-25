@@ -9,7 +9,7 @@ const port = process.env.PORT || 5000;
 // Middleware
 app.use(
   cors({
-    origin: "http://localhost:3000",
+    origin: ["http://localhost:3000" , "https://inventory-client-sjt1.onrender.com"],
     credentials: true,
   })
 );
@@ -23,7 +23,7 @@ const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster
 const client = new MongoClient(uri, {
   serverApi: {
     version: ServerApiVersion.v1,
-    strict: true,
+    // strict: true,
     deprecationErrors: true,
   },
 });
@@ -35,6 +35,9 @@ async function run() {
 
     const usersCollection = client.db("InventoryUserDB").collection("users");
     const productsCollection = client.db("InventoryUserDB").collection("products");
+
+    // **Create text index on the name and description fields for search**
+    await productsCollection.createIndex({ name: "text", description: "text" });
 
     // Register a new user
     app.post("/users", async (req, res) => {
@@ -126,9 +129,39 @@ async function run() {
 
     // Get all products
     app.get("/products", async (req, res) => {
-      const products = await productsCollection.find().toArray();
+
+      const page = parseInt(req.query.page) || 1;
+      const size = parseInt(req.query.size) || 1;
+
+      const products = await productsCollection.find().skip((page-1) * size).limit(size).toArray();
       res.send(products);
     });
+
+    // Search products by word
+    // app.get("/products/search", async (req, res) => {
+    //   try {
+    //     const { query } = req.query; 
+
+    //     // If the query is empty, return a bad request
+    //     if (!query) {
+    //       return res.status(400).send({ message: "Search query is required" });
+    //     }
+
+    //     // Search using the $text operator for the text index
+    //     const products = await productsCollection.find({
+    //       $text: { $search: query }, 
+    //     }).toArray();
+
+    //     if (products.length === 0) {
+    //       return res.status(404).send({ message: "No products found" });
+    //     }
+
+    //     res.send(products); // Return the found products
+    //   } catch (error) {
+    //     console.error(error);
+    //     res.status(500).send({ message: "Server error" });
+    //   }
+    // });
 
     app.get("/", (req, res) => {
       res.send("Inventory server is running");
