@@ -131,10 +131,15 @@ async function run() {
 
       const page = parseInt(req.query.page) || 1;
       const size = parseInt(req.query.size) || 1;
+      const search = req.query.search || "";
+      console.log(search)
+      const searchQuery = {
+        name: { $regex: search , $options: "i" },
+      };
 
       const total = await productsCollection.countDocuments();
 
-      const products = await productsCollection.find().skip((page-1) * size).limit(size).toArray() || [];
+      const products = await productsCollection.find(searchQuery).skip((page-1) * size).limit(size).toArray() || [];
       res.send({
         products,
         meta: {
