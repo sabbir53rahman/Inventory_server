@@ -36,8 +36,7 @@ async function run() {
     const usersCollection = client.db("InventoryUserDB").collection("users");
     const productsCollection = client.db("InventoryUserDB").collection("products");
 
-    // **Create text index on the name and description fields for search**
-    await productsCollection.createIndex({ name: "text", description: "text" });
+
 
     // Register a new user
     app.post("/users", async (req, res) => {
@@ -133,8 +132,18 @@ async function run() {
       const page = parseInt(req.query.page) || 1;
       const size = parseInt(req.query.size) || 1;
 
-      const products = await productsCollection.find().skip((page-1) * size).limit(size).toArray();
-      res.send(products);
+      const total = await productsCollection.countDocuments();
+
+      const products = await productsCollection.find().skip((page-1) * size).limit(size).toArray() || [];
+      res.send({
+        products,
+        meta: {
+            currentPage: page,
+            pageSize: size,
+            totalItems: total,
+            totalPages: Math.ceil(total / size),
+        },
+    });
     });
 
     // Search products by word
