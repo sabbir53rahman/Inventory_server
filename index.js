@@ -62,6 +62,27 @@ async function run() {
       res.send(result);
     });
 
+    //make admin
+    app.patch("/users/admin/:id", async(req, res)=>{
+      const id = req.params.id;
+      const filter = {_id: new ObjectId(id)}
+      const updatedDoc = {
+        $set:{
+          role:"admin"
+        }
+      }
+      const result = await usersCollection.updateOne(filter, updatedDoc)
+      res.send(result)
+    })
+
+    //delete a user
+    app.delete("/users/:id", async (req, res)=>{
+      const id = req.params.id;
+      const query = {_id: new ObjectId(id)};
+      const result = await usersCollection.deleteOne(query);
+      res.send(result)
+    })
+
     // Check if the user is an admin
     app.get("/isAdmin/:email", async (req, res) => {
       try {
