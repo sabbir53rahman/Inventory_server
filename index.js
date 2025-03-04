@@ -1,5 +1,6 @@
 const express = require("express");
 const cors = require("cors");
+const jwt = require("jsonwebtoken");
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 require("dotenv").config();
 
@@ -9,7 +10,10 @@ const port = process.env.PORT || 5000;
 // Middleware
 app.use(
   cors({
-    origin: ["http://localhost:3000" , "https://inventory-client-sjt1.onrender.com"],
+    origin: [
+      "http://localhost:3000",
+      "https://inventory-client-sjt1.onrender.com",
+    ],
     credentials: true,
   })
 );
@@ -34,9 +38,9 @@ async function run() {
     console.log("Connected to MongoDB");
 
     const usersCollection = client.db("InventoryUserDB").collection("users");
-    const productsCollection = client.db("InventoryUserDB").collection("products");
-
-
+    const productsCollection = client
+      .db("InventoryUserDB")
+      .collection("products");
 
     // Register a new user
     app.post("/users", async (req, res) => {
@@ -63,25 +67,25 @@ async function run() {
     });
 
     //make admin
-    app.patch("/users/admin/:id", async(req, res)=>{
+    app.patch("/users/admin/:id", async (req, res) => {
       const id = req.params.id;
-      const filter = {_id: new ObjectId(id)}
+      const filter = { _id: new ObjectId(id) };
       const updatedDoc = {
-        $set:{
-          role:"admin"
-        }
-      }
-      const result = await usersCollection.updateOne(filter, updatedDoc)
-      res.send(result)
-    })
+        $set: {
+          role: "admin",
+        },
+      };
+      const result = await usersCollection.updateOne(filter, updatedDoc);
+      res.send(result);
+    });
 
     //delete a user
-    app.delete("/users/:id", async (req, res)=>{
+    app.delete("/users/:id", async (req, res) => {
       const id = req.params.id;
-      const query = {_id: new ObjectId(id)};
+      const query = { _id: new ObjectId(id) };
       const result = await usersCollection.deleteOne(query);
-      res.send(result)
-    })
+      res.send(result);
+    });
 
     // Check if the user is an admin
     app.get("/isAdmin/:email", async (req, res) => {
@@ -126,20 +130,29 @@ async function run() {
     // **Add a new product**
     app.post("/products", async (req, res) => {
       const product = req.body;
-      
+
       if (!product.name || !product.price) {
-        return res.status(400).send({ message: "Product name and price are required." });
+        return res
+          .status(400)
+          .send({ message: "Product name and price are required." });
       }
 
       // Check if product already exists
-      const existingProduct = await productsCollection.findOne({ name: product.name });
+      const existingProduct = await productsCollection.findOne({
+        name: product.name,
+      });
 
       if (existingProduct) {
-        return res.send({ message: "Product already exists", insertedId: null });
+        return res.send({
+          message: "Product already exists",
+          insertedId: null,
+        });
       }
 
       const result = await productsCollection.insertOne(product);
-      const newProduct = await productsCollection.findOne({ _id: result.insertedId });
+      const newProduct = await productsCollection.findOne({
+        _id: result.insertedId,
+      });
 
       res.send({
         message: "Product added successfully",
@@ -149,33 +162,44 @@ async function run() {
 
     // Get all products
     app.get("/products", async (req, res) => {
-
-      const page = parseInt(req.query.page) || 1;
-      const size = parseInt(req.query.size) || 1;
+      const page = req.query.page ? parseInt(req.query.page) : null;
+      const size = req.query.size ? parseInt(req.query.size) : null;
       const search = req.query.search || "";
-      console.log(search)
+    
+      console.log(search);
       const searchQuery = {
-        name: { $regex: search , $options: "i" },
+        name: { $regex: search, $options: "i" },
       };
-
+    
       const total = await productsCollection.countDocuments();
-
-      const products = await productsCollection.find(searchQuery).skip((page-1) * size).limit(size).toArray() || [];
-      res.send({
-        products,
-        meta: {
-            currentPage: page,
-            pageSize: size,
+    
+      if (!page && !size) {
+        const products = await productsCollection.find().toArray();
+        res.send({ products });
+      } else {
+        const products = await productsCollection
+          .find(searchQuery)
+          .skip((page - 1) * size)
+          .limit(size)
+          .toArray();
+    
+        res.send({
+          products,
+          meta: {
+            currentPage: page || 1,
+            pageSize: size || total,
             totalItems: total,
-            totalPages: Math.ceil(total / size),
-        },
+            totalPages: size ? Math.ceil(total / size) : 1,
+          },
+        });
+      }
     });
-    });
+    
 
     // Search products by word
     // app.get("/products/search", async (req, res) => {
     //   try {
-    //     const { query } = req.query; 
+    //     const { query } = req.query;
 
     //     // If the query is empty, return a bad request
     //     if (!query) {
@@ -184,7 +208,7 @@ async function run() {
 
     //     // Search using the $text operator for the text index
     //     const products = await productsCollection.find({
-    //       $text: { $search: query }, 
+    //       $text: { $search: query },
     //     }).toArray();
 
     //     if (products.length === 0) {
