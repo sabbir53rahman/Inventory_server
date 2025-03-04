@@ -38,6 +38,7 @@ async function run() {
     console.log("Connected to MongoDB");
 
     const usersCollection = client.db("InventoryUserDB").collection("users");
+    const orderCollection = client.db("InventoryUserDB").collection("order");
     const productsCollection = client
       .db("InventoryUserDB")
       .collection("products");
@@ -165,14 +166,14 @@ async function run() {
       const page = req.query.page ? parseInt(req.query.page) : null;
       const size = req.query.size ? parseInt(req.query.size) : null;
       const search = req.query.search || "";
-    
+
       console.log(search);
       const searchQuery = {
         name: { $regex: search, $options: "i" },
       };
-    
+
       const total = await productsCollection.countDocuments();
-    
+
       if (!page && !size) {
         const products = await productsCollection.find().toArray();
         res.send({ products });
@@ -182,7 +183,7 @@ async function run() {
           .skip((page - 1) * size)
           .limit(size)
           .toArray();
-    
+
         res.send({
           products,
           meta: {
@@ -194,7 +195,57 @@ async function run() {
         });
       }
     });
+
+    //orders api
+    app.post("/orders", async (req, res) => {
+      try {
+        const order = req.body;
+        const productId = new ObjectId(order.productId);
     
+        const product = await productsCollection.findOne({ _id: productId });
+    
+        if (!product) {
+          return res.status(404).send({ message: "Product not found" });
+        }
+    
+        const productQuantity = parseInt(product.quantity, 10);
+        const orderQuantity = parseInt(order.quantity, 10);
+    
+        if (productQuantity < orderQuantity) {
+          return res.status(400).send({ message: "Not enough stock available" });
+        }
+    
+        // Update the product's quantity using $inc
+        await productsCollection.updateOne(
+          { _id: productId },
+          { $inc: { quantity: -orderQuantity } }
+        );
+    
+        const result = await orderCollection.insertOne(order);
+    
+        res.send({
+          message: "Order added successfully",
+          data: result,
+        });
+      } catch (error) {
+        console.error("Error placing order:", error);
+        res.status(500).send({ message: "Failed to place order" });
+      }
+    });
+    
+
+    app.get("/orders", async (req, res) => {
+      const orders = await orderCollection.find().toArray();
+
+      if (orders.length === 0) {
+        return res.status(404).send({ message: "No orders found" });
+      }
+
+      res.send({
+        message: "Orders retrieved successfully",
+        data: orders,
+      });
+    });
 
     // Search products by word
     // app.get("/products/search", async (req, res) => {
