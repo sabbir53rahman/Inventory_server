@@ -214,8 +214,7 @@ async function run() {
         if (productQuantity < orderQuantity) {
           return res.status(400).send({ message: "Not enough stock available" });
         }
-    
-        // Update the product's quantity using $inc
+
         await productsCollection.updateOne(
           { _id: productId },
           { $inc: { quantity: -orderQuantity } }
