@@ -201,27 +201,30 @@ async function run() {
       try {
         const order = req.body;
         const productId = new ObjectId(order.productId);
-    
+
         const product = await productsCollection.findOne({ _id: productId });
-    
+
         if (!product) {
           return res.status(404).send({ message: "Product not found" });
         }
-    
-        const productQuantity = parseInt(product.quantity, 10);
-        const orderQuantity = parseInt(order.quantity, 10);
-    
+
+        const productQuantity = parseInt(product.quantity);
+        const orderQuantity = parseInt(order.quantity);
+        console.log({ productQuantity, orderQuantity });
+
         if (productQuantity < orderQuantity) {
-          return res.status(400).send({ message: "Not enough stock available" });
+          return res
+            .status(400)
+            .send({ message: "Not enough stock available" });
         }
 
         await productsCollection.updateOne(
           { _id: productId },
           { $inc: { quantity: -orderQuantity } }
         );
-    
+
         const result = await orderCollection.insertOne(order);
-    
+
         res.send({
           message: "Order added successfully",
           data: result,
@@ -231,20 +234,67 @@ async function run() {
         res.status(500).send({ message: "Failed to place order" });
       }
     });
-    
 
     app.get("/orders", async (req, res) => {
-      const orders = await orderCollection.find().toArray();
+      try {
+        const search = req.query.search || ""; 
+    
+        let query = {};
+        if (search) {
+          query = {
+            $or: [
+              { customerName: { $regex: search, $options: "i" } },
+              { customerEmail: { $regex: search, $options: "i" } },
+              { productName: { $regex: search, $options: "i" } },
+            ],
+          };
+        }
 
-      if (orders.length === 0) {
-        return res.status(404).send({ message: "No orders found" });
+        const orders = await orderCollection.find(query).toArray();
+    
+        if (orders.length === 0) {
+          return res.status(404).send({ message: "No orders found" });
+        }
+    
+        let totalOrderPrice = 0; 
+    
+  
+        for (let i = 0; i < orders.length; i++) {
+          const order = orders[i];
+          const productId = new ObjectId(order.productId);
+    
+          
+          const product = await productsCollection.findOne({ _id: productId });
+    
+         
+          if (product) {
+            order.productName = product.name; 
+            order.productImage = product.image; 
+    
+            const singleProductTotalPrice = product.price * order.quantity;
+            order.singleProductTotalPrice = singleProductTotalPrice;
+    
+            
+            totalOrderPrice += singleProductTotalPrice;
+          } else {
+            order.productName = "Unknown Product"; 
+            order.productImage = null; 
+            order.singleProductTotalPrice = 0; 
+          }
+        }
+    
+        
+        res.send({
+          message: "Orders retrieved successfully",
+          data: orders,
+          totalOrderPrice: totalOrderPrice, 
+        });
+      } catch (error) {
+        console.error("Error fetching orders:", error);
+        res.status(500).send({ message: "Failed to fetch orders" });
       }
-
-      res.send({
-        message: "Orders retrieved successfully",
-        data: orders,
-      });
     });
+    
 
     // Search products by word
     // app.get("/products/search", async (req, res) => {
