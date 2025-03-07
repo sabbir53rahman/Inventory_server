@@ -239,18 +239,7 @@ async function run() {
       try {
         const search = req.query.search || ""; 
     
-        let query = {};
-        if (search) {
-          query = {
-            $or: [
-              { customerName: { $regex: search, $options: "i" } },
-              { customerEmail: { $regex: search, $options: "i" } },
-              { productName: { $regex: search, $options: "i" } },
-            ],
-          };
-        }
-
-        const orders = await orderCollection.find(query).toArray();
+      
     
         if (orders.length === 0) {
           return res.status(404).send({ message: "No orders found" });
@@ -282,6 +271,19 @@ async function run() {
             order.singleProductTotalPrice = 0; 
           }
         }
+
+        let query = {};
+        if (search) {
+          query = {
+            $or: [
+              { customerName: { $regex: search, $options: "i" } },
+              { customerEmail: { $regex: search, $options: "i" } },
+              { productName: { $regex: search, $options: "i" } },
+            ],
+          };
+        }
+
+        const orders = await orderCollection.find(query).toArray();
     
         
         res.send({

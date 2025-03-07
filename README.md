@@ -17,7 +17,7 @@ Product management (add, search, get products)
 Order management (place orders, get orders)
 Authentication & Authorization (admin check)
 Tech Stack
-Node.js: JavaScript runtime for server-side logic.
+Node.js: JavaScript runtime for server-side logic.      
 Express.js: Web framework for handling HTTP requests.
 MongoDB: NoSQL database to store users, products, and orders.
 MongoDB Atlas: Cloud-hosted MongoDB service for database management.
